@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/404nffff/go_pkg/variable"
+	"github.com/404nffff/go_pkg/config"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -55,7 +55,7 @@ func LoggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
 		clientIP := c.ClientIP()
 
 		// 设置日志中记录字符串的最大长度
-		maxLogLength := variable.ConfigYml.GetInt("Logs.ResponseLengthMax") // 最大日志长度
+		maxLogLength := config.ConfigYml.GetInt("Logs.ResponseLengthMax") // 最大日志长度
 
 		// 请求体日志处理
 		var logReqBody string
@@ -89,17 +89,17 @@ func LoggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
 // InitLogger 初始化 zap.Logger 和 lumberjack
 func InitLogger() (*zap.Logger, error) {
 	w := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   variable.BasePath + variable.ConfigYml.GetString("Logs.GinLogName"), // 日志文件路径
-		MaxSize:    variable.ConfigYml.GetInt("Logs.MaxSize"),                           // 每个日志文件保存的最大尺寸 单位：M
-		MaxBackups: variable.ConfigYml.GetInt("Logs.MaxBackups"),                        // 日志文件最多保存多少个备份
-		MaxAge:     variable.ConfigYml.GetInt("Logs.MaxAge"),                            // 文件最多保存多少天
-		Compress:   variable.ConfigYml.GetBool("Logs.Compress"),                         // 是否压缩
+		Filename:   config.BasePath + config.ConfigYml.GetString("Logs.GinLogName"), // 日志文件路径
+		MaxSize:    config.ConfigYml.GetInt("Logs.MaxSize"),                         // 每个日志文件保存的最大尺寸 单位：M
+		MaxBackups: config.ConfigYml.GetInt("Logs.MaxBackups"),                      // 日志文件最多保存多少个备份
+		MaxAge:     config.ConfigYml.GetInt("Logs.MaxAge"),                          // 文件最多保存多少天
+		Compress:   config.ConfigYml.GetBool("Logs.Compress"),                       // 是否压缩
 	})
 
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.TimeKey = "created_at"
 
-	timePrecision := variable.ConfigYml.GetString("Logs.TimePrecision")
+	timePrecision := config.ConfigYml.GetString("Logs.TimePrecision")
 	var recordTimeFormat string
 	switch timePrecision {
 	case "second":

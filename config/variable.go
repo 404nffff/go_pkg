@@ -23,7 +23,7 @@ var (
 
 	Logs *zap.Logger // 全局日志指针
 
-	Pool ants.AntsInterface // 全局协程池指针
+	Task ants.AntsInterface // 全局协程池指针
 )
 
 func init() {

@@ -40,6 +40,10 @@ type AntsInterface interface {
 	// SetTimeout 设置 ants 的超时时间。
 	// 它接受一个时间持续时间作为参数。
 	SetTimeout(timeout time.Duration)
+
+	// ExecTask 直接执行任务。
+	// 它接受一个上下文、一个函数和可变参数，并返回一个结果和一个错误。
+	ExecTask(ctx context.Context, fn any, params ...any) (any, error)
 }
 
 // 协程池
@@ -256,4 +260,59 @@ func (a *Ants) Exec(ctx context.Context) (map[string]any, map[string]error) {
 // SetTimeout 设置 ants 的超时时间。
 func (a *Ants) SetTimeout(timeout time.Duration) {
 	a.taskTimeOut = timeout
+}
+
+// 直接执行任务
+func (a *Ants) ExecTask(ctx context.Context, fn any, params ...any) (any, error) {
+	fnType := reflect.TypeOf(fn)
+	if fnType.Kind() != reflect.Func {
+		return nil, fmt.Errorf("ExecTask: fn must be a function, got %v", fnType.Kind())
+	}
+
+	done := make(chan struct{})
+	var result any
+	var err error
+	var once sync.Once
+
+	closeDone := func() {
+		once.Do(func() {
+			close(done)
+		})
+	}
+
+	taskCtx, cancel := context.WithTimeout(ctx, a.taskTimeOut)
+	defer cancel()
+
+	err = a.pool.Submit(func() {
+		defer closeDone()
+
+		f := reflect.ValueOf(fn)
+		args := make([]reflect.Value, len(params)+1)
+		args[0] = reflect.ValueOf(taskCtx)
+		for j, param := range params {
+			args[j+1] = reflect.ValueOf(param)
+		}
+
+		results := f.Call(args)
+		if len(results) > 0 {
+			result = results[0].Interface()
+		}
+		if len(results) > 1 && !results[1].IsNil() {
+			err = results[1].Interface().(error)
+		}
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("ExecTask: failed to submit task: %w", err)
+	}
+
+	select {
+	case <-done:
+		return result, err
+	case <-taskCtx.Done():
+
+		return nil, fmt.Errorf("ExecTask: %w", taskCtx.Err())
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ExecTask: %w", ctx.Err())
+	}
 }
